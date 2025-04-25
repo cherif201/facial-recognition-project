@@ -148,7 +148,7 @@ def login():
     # Fetch stored encoding from the database
     conn = get_database_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, face_encoding FROM students WHERE id_card = %s", (id_card,))
+    cur.execute("SELECT id_card, face_encoding FROM students WHERE id_card = %s", (id_card,))
     row = cur.fetchone()
 
     if row is None:
