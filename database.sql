@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS students (
     level TEXT,
     email TEXT UNIQUE Not NULL,
     password TEXT UNIQUE Not NULL,
-    face_encoding BYTEA  NOT NULL -- stores face encoding
+    face_encoding BYTEA  NOT NULL, -- stores face encoding
+    face_height INT,
+    face_width INT
 );
 
 CREATE TABLE IF NOT EXISTS access_logs (

@@ -70,7 +70,11 @@ def detect_face(image):
     )
     print(f"Number of faces detected: {len(faces)}")  # Debugging line
     if len(faces) != 1:
-        return None, "Please ensure that only one face is present in the image"
+        # Save the failed image for debugging
+        fail_path = f"failed_face_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        cv2.imwrite(fail_path, image)
+        print(f"Saved failed face image as {fail_path}")
+        return None, "Please ensure that only one face is present in the image. (A copy of your image was saved for debugging.)"
     x, y, w, h = faces[0]
     face_image = gray[y:y+h, x:x+w]
     return face_image, None
@@ -109,14 +113,15 @@ def signup():
 
     # Save face encoding (flattened grayscale face image)
     face_encoding = face_image.flatten().tobytes()
+    face_height, face_width = face_image.shape
 
     # Insert data into the database
     connection = get_database_connection()
     cursor = connection.cursor()
     cursor.execute("""
-        INSERT INTO students (first_name, last_name, age, level, id_card, email, password, face_encoding)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    """, (first_name, last_name, age, level, id_card, email, password, face_encoding))
+        INSERT INTO students (first_name, last_name, age, level, id_card, email, password, face_encoding, face_height, face_width)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (first_name, last_name, age, level, id_card, email, password, face_encoding, face_height, face_width))
     connection.commit()
     cursor.close()
     connection.close()
@@ -140,25 +145,34 @@ def login():
     image = process_image(face_data_url)
     face_image, error = detect_face(image)
     if error:
-        return error
+        print(f"Face detection error during login: {error}")  # Debugging line
+        return error, 400
 
     # Flatten the detected face for comparison
     input_encoding = face_image.flatten()
 
-    # Fetch stored encoding from the database
+    # Fetch stored encoding and shape from the database
     conn = get_database_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id_card, face_encoding FROM students WHERE id_card = %s", (id_card,))
+    cur.execute("SELECT first_name, id_card, face_encoding, face_height, face_width FROM students WHERE id_card = %s", (id_card,))
     row = cur.fetchone()
 
     if row is None:
         return "Student not found!"
 
-    student_id, stored_encoding_bytes = row
+    first_name, student_id, stored_encoding_bytes, stored_height, stored_width = row
     stored_encoding = np.frombuffer(stored_encoding_bytes, dtype=np.uint8)
 
-    # Compare the input face with the stored face
-    match = np.array_equal(input_encoding, stored_encoding)
+    # Resize both faces to a fixed size for comparison
+    input_face_resized = cv2.resize(face_image, (100, 100)).flatten()
+    stored_face_reshaped = stored_encoding.reshape((stored_height, stored_width))
+    stored_face_resized = cv2.resize(stored_face_reshaped, (100, 100)).flatten()
+
+    # Use Mean Squared Error (MSE) for comparison
+    mse = np.mean((input_face_resized - stored_face_resized) ** 2)
+    print(f"MSE between input and stored face: {mse}")
+    threshold = 1000  # You may need to tune this value
+    match = mse < threshold
 
     if not match:
         return "Face does not match our records!"
@@ -177,7 +191,7 @@ def login():
     cur.close()
     conn.close()
 
-    return "Login successful! Welcome."
+    return f"Login successful! Welcome, {first_name}."
 
 # Route: Logout
 @app.route('/logout/<int:student_id>', methods=['POST'])

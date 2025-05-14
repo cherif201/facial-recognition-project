@@ -18,7 +18,15 @@ window.onload = () => {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL("image/png");
         faceInput.value = imageData;
-        console.log("Captured image data:", imageData);  // Debugging line
+        // Show preview
+        let preview = document.getElementById("facePreview");
+        if (!preview) {
+            preview = document.createElement("img");
+            preview.id = "facePreview";
+            preview.style.marginTop = "10px";
+            captureBtn.parentNode.insertBefore(preview, canvas.nextSibling);
+        }
+        preview.src = imageData;
         alert("Face captured successfully!");
     });
 
