@@ -32,6 +32,8 @@ def get_database_connection():
 def initialize_database():
     connection = get_database_connection()
     cursor = connection.cursor()
+    cursor.execute("DROP TABLE IF EXISTS access_logs CASCADE;")
+    cursor.execute("DROP TABLE IF EXISTS students CASCADE;")
     with open("database.sql", "r") as sql_file:
         sql_commands = sql_file.read()
     for command in sql_commands.split(";"):
@@ -79,10 +81,9 @@ def detect_face(image):
     face_image = gray[y:y+h, x:x+w]
     return face_image, None
 
-# Route: Home
 @app.route('/')
 def index():
-    return "Welcome to the facial recognition attendance system!"
+    return render_template('index.html')
 
 # Route: Signup
 @app.route('/signup', methods=['GET', 'POST'])
