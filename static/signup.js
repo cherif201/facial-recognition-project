@@ -30,13 +30,30 @@ window.onload = () => {
     document.getElementById("signupForm").addEventListener("submit", function (e) {
         e.preventDefault();
         const formData = new FormData(this);
+        // Ensure role is included (in case browser autofill or JS changes)
+        const role = document.getElementById("role").value;
+        formData.set("role", role);
 
         fetch("/signup", {
             method: "POST",
             body: formData,
         })
-        .then(response => response.text())
-        .then(data => alert(data))
-        .catch(error => console.error("Error:", error));
+        .then(async response => {
+            let data;
+            try {
+                data = await response.json();
+            } catch {
+                data = { success: false, error: "Invalid server response." };
+            }
+            if (data.success && data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else {
+                alert(data.error || "Signup failed.");
+            }
+        })
+        .catch(error => {
+            alert("Error: " + error);
+            console.error("Error:", error);
+        });
     });
 };

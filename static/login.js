@@ -34,13 +34,37 @@ window.onload = () => {
     document.getElementById("loginForm").addEventListener("submit", function (e) {
         e.preventDefault();
         const formData = new FormData(this);
+        // Ensure role is included
+        const role = document.getElementById("role").value;
+        formData.set("role", role);
 
         fetch("/login", {
             method: "POST",
             body: formData,
         })
-        .then(response => response.text())
-        .then(data => alert(data))
-        .catch(error => console.error("Error:", error));
+        .then(async response => {
+            let data;
+            try {
+                data = await response.json();
+            } catch {
+                data = { success: false, error: "Invalid server response." };
+            }
+            if (data.success && data.redirect_url) {
+                // Store id_card in localStorage for both student and professor
+                const idCard = document.getElementById('id_card').value;
+                if (role === 'professor') {
+                    localStorage.setItem('professor_id_card', idCard);
+                } else {
+                    localStorage.setItem('student_id_card', idCard);
+                }
+                window.location.href = data.redirect_url;
+            } else {
+                alert(data.error || "Login failed.");
+            }
+        })
+        .catch(error => {
+            alert("Error: " + error);
+            console.error("Error:", error);
+        });
     });
 };
