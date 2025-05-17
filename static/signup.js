@@ -3,6 +3,9 @@ window.onload = () => {
     const canvas = document.getElementById("canvas");
     const faceInput = document.getElementById("face_image");
     const captureBtn = document.getElementById("capture");
+    const alertBlock = document.getElementById("alert")
+
+    alertBlock.style.display="none";
 
     // Access the user's webcam
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -18,16 +21,9 @@ window.onload = () => {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL("image/png");
         faceInput.value = imageData;
-        // Show preview
-        let preview = document.getElementById("facePreview");
-        if (!preview) {
-            preview = document.createElement("img");
-            preview.id = "facePreview";
-            preview.style.marginTop = "10px";
-            captureBtn.parentNode.insertBefore(preview, canvas.nextSibling);
-        }
-        preview.src = imageData;
-        alert("Face captured successfully!");
+        const message = document.getElementById("message")
+        message.innerHTML = "Face captured successfully!"
+        alertBlock.style.display="block"
     });
 
     // Handle form submission

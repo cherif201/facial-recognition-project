@@ -18,7 +18,7 @@
 
     <h2 class="text-center">Student signup</h2>
     <br>
-    <form id="signupForm" enctype="multipart/form-data">
+    <form id="signupForm" enctype="multipart/form-data" method="post" action="/signup">
         <div class="d-flex justify-content-between">
             <div>
                 <input type="text" class="form-control" name="first_name" placeholder="First Name" required><br>
@@ -35,14 +35,14 @@
                     <button type="button" id="capture" class="btn btn-primary mx-auto">Capture Face</button><br>
                 </div>
                 <br/>
-                <div class="alert alert-info" role="alert">
-                    <!--i want text here-->
-                </div>
+                    <div class="alert alert-info" role="alert" id="alert">
+                        <p id="message"></p>
+                    </div>
                 <canvas id="canvas" style="display:none;"></canvas>
                 <input type="hidden" name="face_image" id="face_image">
             </div>
         </div>
-        <hr/>
+        <hr />
         <div class="col text-center">
             <button type="submit" class="btn btn-primary mx-auto">Submit</button>
         </div>
