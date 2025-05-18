@@ -1,5 +1,5 @@
 
-from flask import send_from_directory
+from flask import send_from_directory, session, redirect, url_for
 import psycopg2
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime
@@ -17,6 +17,7 @@ load_dotenv()
 
 # Flask app initialization
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY")
 
 PEPPER = os.getenv("PASSWORD_PEPPER")
 
@@ -158,7 +159,9 @@ from flask import jsonify
 
 @app.route('/professor/dashboard')
 def professor_dashboard():
-    return render_template('professor_dashboard.html')
+    first_name = session.get('first_name', 'Professor')
+    role = session.get('role', 'professor')
+    return render_template('professor_dashboard.html', first_name=first_name, role=role)
 
 # API endpoint to generate a quiz using QuizAPI and save to DB
 @app.route('/professor/generate_quiz', methods=['POST'])
@@ -305,22 +308,29 @@ def login():
         INSERT INTO access_logs (student_id, login_time)
         VALUES (%s, %s)
     """, (student_id, login_time))
-    conn.commit()
+    try:
+        conn.commit()  # Ensure access_logs INSERT is committed
+    except Exception as e:
+        print("Database commit error:", e)
+        return jsonify({"success": False, "error": "Database error"}), 500
 
     cur.close()
     conn.close()
-
-    # Redirect to dashboard based on role
-    if db_role == 'professor':
-        redirect_url = '/professor/dashboard'
-    else:
-        redirect_url = '/student/dashboard'
-    return jsonify({"success": True, "redirect_url": redirect_url})
-
+    
+    session['first_name'] = first_name
+    session['role'] = db_role
+    
+    return jsonify({
+        "success": True,
+        "redirect_url": url_for('professor_dashboard' if db_role == 'professor' else 'student_dashboard')  # Key renamed!
+    }), 200
+    
 # Student dashboard route
 @app.route('/student/dashboard')
 def student_dashboard():
-    return render_template('student_dashboard.html')
+    first_name = session.get('first_name', 'Student')
+    role = session.get('role', 'student')
+    return render_template('student_dashboard.html', first_name=first_name, role=role)
 
 # API: List all posted quizzes
 @app.route('/student/quizzes')

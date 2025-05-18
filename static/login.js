@@ -4,6 +4,7 @@ window.onload = () => {
     const faceInput = document.getElementById("face_image");
     const captureBtn = document.getElementById("capture");
     const alertBlock = document.getElementById("alert")
+    const form = document.getElementById("loginForm");
 
     alertBlock.style.display = "none";
 
@@ -37,16 +38,16 @@ window.onload = () => {
     });
 
     // Handle form submission
-    document.getElementById("loginForm").addEventListener("submit", function (e) {
+    form.addEventListener("submit", function (e) {
         e.preventDefault();
         const formData = new FormData(this);
-        // Ensure role is included
         const role = document.getElementById("role").value;
         formData.set("role", role);
 
         fetch("/login", {
             method: "POST",
-            body: formData,
+            body: new FormData(form),
+            credentials: "include"
         })
             .then(async response => {
                 let data;
@@ -56,8 +57,9 @@ window.onload = () => {
                     data = { success: false, error: "Invalid server response." };
                 }
                 if (data.success && data.redirect_url) {
-                    // Store id_card in localStorage for both student and professor
                     const idCard = document.getElementById('id_card').value;
+                    const role = document.getElementById('role').value;
+                    localStorage.setItem(`${role}_id_card`, idCard);
                     if (role === 'professor') {
                         localStorage.setItem('professor_id_card', idCard);
                     } else {
