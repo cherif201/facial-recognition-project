@@ -18,6 +18,8 @@ load_dotenv()
 # Flask app initialization
 app = Flask(__name__)
 
+PEPPER = os.getenv("PASSWORD_PEPPER")
+
 # Dictionary to track user sessions
 user_sessions = {}
 
@@ -90,7 +92,6 @@ def signup():
     if request.method == 'GET':
         return render_template('signup.html')
 
-
     # Extract form data
     first_name = request.form['first_name']
     last_name = request.form['last_name']
@@ -139,7 +140,7 @@ def signup():
     face_height, face_width = face_image.shape
 
     # Hash the password
-    hashed_password = generate_password_hash(password)
+    hashed_password = generate_password_hash(password + PEPPER)
 
     # Insert data into the database
     cursor.execute("""
@@ -290,7 +291,7 @@ def login():
 
     # Password check (for demo, password is sent as plain text, but only hash is stored)
     password = request.form.get('password', '')
-    if not check_password_hash(stored_password_hash, password):
+    if not check_password_hash(stored_password_hash, password + PEPPER):
         cur.close()
         conn.close()
         return jsonify({"success": False, "error": "Incorrect password."}), 401
