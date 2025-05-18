@@ -1,4 +1,5 @@
 
+from flask import send_from_directory
 import psycopg2
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime
@@ -6,6 +7,7 @@ import base64
 import cv2
 import numpy as np
 import os
+from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import requests
 from dotenv import load_dotenv
@@ -77,11 +79,17 @@ def index():
     return render_template('index.html')
 
 
+# Serve favicon using the eye-logo.png@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'images'), 'eye-logo.png', mimetype='image/png')
+
+
 # Route: Signup (with role selection)
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'GET':
         return render_template('signup.html')
+
 
     # Extract form data
     first_name = request.form['first_name']
@@ -93,6 +101,27 @@ def signup():
     password = request.form['password']
     role = request.form.get('role', 'student')
     face_data_url = request.form['face_image']
+
+    # Password strength check
+    import re
+    # Use a raw string and escape only the single quote inside the character class
+    password_regex = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?]).{8,}$"
+    if not re.match(password_regex, password):
+        return jsonify({"success": False, "error": "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."}), 400
+
+    # Check for existing email or id_card
+    connection = get_database_connection()
+    cursor = connection.cursor()
+    cursor.execute("SELECT 1 FROM students WHERE email = %s", (email,))
+    if cursor.fetchone():
+        cursor.close()
+        connection.close()
+        return jsonify({"success": False, "error": "Email already exists."}), 400
+    cursor.execute("SELECT 1 FROM students WHERE id_card = %s", (id_card,))
+    if cursor.fetchone():
+        cursor.close()
+        connection.close()
+        return jsonify({"success": False, "error": "ID Card Number already exists."}), 400
 
     if not face_data_url:
         print("No face image provided")  # Debugging line
@@ -109,13 +138,14 @@ def signup():
     face_encoding = face_image.flatten().tobytes()
     face_height, face_width = face_image.shape
 
+    # Hash the password
+    hashed_password = generate_password_hash(password)
+
     # Insert data into the database
-    connection = get_database_connection()
-    cursor = connection.cursor()
     cursor.execute("""
         INSERT INTO students (first_name, last_name, age, level, id_card, email, password, face_encoding, face_height, face_width, role)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, (first_name, last_name, age, level, id_card, email, password, face_encoding, face_height, face_width, role))
+    """, (first_name, last_name, age, level, id_card, email, hashed_password, face_encoding, face_height, face_width, role))
     connection.commit()
     cursor.close()
     connection.close()
@@ -226,10 +256,11 @@ def login():
     # Flatten the detected face for comparison
     input_encoding = face_image.flatten()
 
-    # Fetch stored encoding and shape from the database
+
+    # Fetch stored encoding, shape, and password hash from the database by id_card
     conn = get_database_connection()
     cur = conn.cursor()
-    cur.execute("SELECT first_name, id_card, face_encoding, face_height, face_width, role FROM students WHERE id_card = %s", (id_card,))
+    cur.execute("SELECT first_name, id_card, face_encoding, face_height, face_width, role, password FROM students WHERE id_card = %s", (id_card,))
     row = cur.fetchone()
 
     if row is None:
@@ -237,7 +268,7 @@ def login():
         conn.close()
         return jsonify({"success": False, "error": "Student not found!"}), 404
 
-    first_name, student_id, stored_encoding_bytes, stored_height, stored_width, db_role = row
+    first_name, student_id, stored_encoding_bytes, stored_height, stored_width, db_role, stored_password_hash = row
     stored_encoding = np.frombuffer(stored_encoding_bytes, dtype=np.uint8)
 
     # Resize both faces to a fixed size for comparison
@@ -251,10 +282,18 @@ def login():
     threshold = 1000  # You may need to tune this value
     match = mse < threshold
 
+    # Check if the id_card matches the face (match must be True)
     if not match:
         cur.close()
         conn.close()
-        return jsonify({"success": False, "error": "Face does not match our records!"}), 401
+        return jsonify({"success": False, "error": "ID Card number does not match the user's face!"}), 401
+
+    # Password check (for demo, password is sent as plain text, but only hash is stored)
+    password = request.form.get('password', '')
+    if not check_password_hash(stored_password_hash, password):
+        cur.close()
+        conn.close()
+        return jsonify({"success": False, "error": "Incorrect password."}), 401
 
     # Record login time
     login_time = datetime.now()
