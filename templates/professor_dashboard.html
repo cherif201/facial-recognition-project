@@ -13,6 +13,9 @@
         <h2>Professor Dashboard</h2>
         <h2>Welcome, {{ first_name }}!</h2>
         <p>role: {{role}}</p>
+        <form action="{{ url_for('logout', student_id=user_sessions.get(student_id)) }}" method="post">
+            <button type="submit" class="btn btn-outline-dark">Logout</button>
+        </form>
         <form id="quizForm" class="mb-4">
             <div class="mb-3">
                 <label for="title" class="form-label">Quiz Title</label>
